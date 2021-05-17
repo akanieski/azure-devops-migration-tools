@@ -74,7 +74,7 @@ namespace MigrationTools.DataContracts.Pipelines
             Project = null;
 
             //Remove secure files
-            Process.Phases.ForEach(p => p.Steps.ForEach(s =>
+            Process.Phases?.ForEach(p => p.Steps.ForEach(s =>
             {
                 var secureFiles = s.Inputs.Where(i => i.Key == "secureFile");
                 for (int i = 0; i < secureFiles.Count(); i++)
@@ -170,6 +170,7 @@ namespace MigrationTools.DataContracts.Pipelines
 
     public partial class Process
     {
+        public string YamlFilename { get; set; }
         public Phase[] Phases { get; set; }
 
         public int Type { get; set; }
@@ -225,7 +226,13 @@ namespace MigrationTools.DataContracts.Pipelines
 
         public string DefinitionType { get; set; }
     }
+    public partial class GitHubTaskInput
+    {
+        public string GitHubConnection { get; set; }
+        public string RepositoryName { get; set; }
+        public string Id { get; set; }
 
+    }
     public partial class Target
     {
         public ExecutionOptions ExecutionOptions { get; set; }
@@ -296,7 +303,7 @@ namespace MigrationTools.DataContracts.Pipelines
 
         public string DefaultBranch { get; set; }
 
-        public bool Clean { get; set; }
+        public bool? Clean { get; set; }
 
         public bool CheckoutSubmodules { get; set; }
     }

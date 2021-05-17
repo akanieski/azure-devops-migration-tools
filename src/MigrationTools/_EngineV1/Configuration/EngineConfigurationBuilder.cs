@@ -59,14 +59,14 @@ namespace MigrationTools._EngineV1.Configuration
             //IConfigurationRoot configuration = builder.Build();
             //var settings = new EngineConfiguration();
             //configuration.Bind(settings);
-            //#if !DEBUG
+            #if !DEBUG
             string appVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString(2);
             if (ec?.Version != appVersion)
             {
                 _logger.LogError("The config version {Version} does not match the current app version {appVersion}. There may be compatability issues and we recommend that you generate a new default config and then tranfer the settings accross.", ec.Version, appVersion);
                 throw new Exception("Version in Config does not match X.X in Application. Please check and revert.");
             }
-            //#endif
+            #endif
             return ec;
         }
 

@@ -1,11 +1,15 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Dynamic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MigrationTools.DataContracts;
 using MigrationTools.DataContracts.Pipelines;
+using MigrationTools.DataContracts.Repos;
 using MigrationTools.Endpoints;
 using MigrationTools.Enrichers;
 
@@ -26,6 +30,7 @@ namespace MigrationTools.Processors
                     ILogger<Processor> logger)
             : base(processorEnrichers, endpointFactory, services, telemetry, logger)
         {
+
         }
 
         public new AzureDevOpsEndpoint Source => (AzureDevOpsEndpoint)base.Source;
@@ -194,6 +199,7 @@ namespace MigrationTools.Processors
             var targetDefinitions = await Target.GetApiDefinitionsAsync<BuildDefinition>();
             var sourceServiceConnections = await Source.GetApiDefinitionsAsync<ServiceConnection>();
             var targetServiceConnections = await Target.GetApiDefinitionsAsync<ServiceConnection>();
+            var targetRepos = await Target.GetApiDefinitionsAsync<GitRepo>();
             var definitionsToBeMigrated = FilterOutExistingDefinitions(sourceDefinitions, targetDefinitions);
 
             definitionsToBeMigrated = FilterAwayIfAnyMapsAreMissing(definitionsToBeMigrated, TaskGroupMapping, VariableGroupMapping);
@@ -205,7 +211,74 @@ namespace MigrationTools.Processors
                     .FirstOrDefault(c => c.Id == sourceConnectedServiceId)?.Name == s.Name)?.Id;
                 definitionToBeMigrated.Repository.Properties.ConnectedServiceId = targetConnectedServiceId;
 
-                if (TaskGroupMapping is not null)
+                // Need to ensure that service connections used by tasks are mapped properly.
+                if (definitionToBeMigrated.Process != null && definitionToBeMigrated.Process.Phases != null)
+                {
+                    foreach (var phase in definitionToBeMigrated.Process.Phases)
+                    {
+                        if (phase.Steps != null)
+                        {
+                            foreach (var step in phase.Steps)
+                            {
+                                if (step.Inputs != null && step.Inputs.Any(x => x.Key.Equals("id", StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    // Inputs are unique in the sense that we don't always know in advance what each endpoint type will need in terms of mapping
+                                    var inputs = step.Inputs.ToDictionary(x => x.Key, x => x.Value);
+
+                                    /*
+                                    var sourceConnection = sourceServiceConnections.FirstOrDefault(s => s.Id == (step.Inputs as dynamic).id);
+                                    var targetConnection = targetServiceConnections.FirstOrDefault(x => x.Id.Equals((step.Inputs as dynamic).id, StringComparison.OrdinalIgnoreCase));
+
+                                    if (targetConnection == null)
+                                    {
+                                        // Let's try to found the source in the target by name
+                                        targetConnection = targetServiceConnections.FirstOrDefault(x => x.Name.Equals(sourceConnection.Name, StringComparison.OrdinalIgnoreCase));
+                                    }
+                                    if (targetConnection == null)
+                                    {
+                                        Log.LogWarning($"Could not find source endpoint [{step.DisplayName}::{sourceConnection.Name}] in target.");
+                                        continue;
+                                    }*/
+
+                                    // Generalized ID mapping - for any input property that looks like the source endpoint's ID
+                                    foreach (var input in inputs.ToArray())
+                                    {
+                                        var sourceEndpoint = sourceServiceConnections.FirstOrDefault(x => x.Id.Equals(input.Value.ToString(), StringComparison.OrdinalIgnoreCase));
+                                        if (sourceEndpoint != null)
+                                        {
+                                            var targetEndpoint = targetServiceConnections.FirstOrDefault(x => x.Name.Equals(sourceEndpoint.Name, StringComparison.OrdinalIgnoreCase));
+                                            inputs[input.Key] = targetEndpoint.Id;
+                                        }
+                                    }
+
+                                    // Custom ID mapping
+                                    /*if (inputs.ContainsKey("gitHubConnection"))
+                                    {
+                                        // Need to map the source GH connection to Target
+                                        var sourceGH = sourceServiceConnections.FirstOrDefault(x => x.Id.Equals(inputs["gitHubConnection"].ToString(), StringComparison.OrdinalIgnoreCase));
+                                        var targetEndpoint = targetServiceConnections.FirstOrDefault(x => x.Name.Equals(sourceGH.Name, StringComparison.OrdinalIgnoreCase));
+                                        inputs["gitHubConnection"] = targetEndpoint?.Id;
+                                    }*/
+
+                                    step.Inputs = inputs.ToExpando();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (definitionToBeMigrated.Repository.Type == "TfsGit")
+                {
+                    var sourceRepoName = definitionToBeMigrated.Repository.Name;
+                    var targetRepo = targetRepos.FirstOrDefault(tgt => tgt.Name.Equals(sourceRepoName, StringComparison.OrdinalIgnoreCase));
+                    if (targetRepo != null)
+                    {
+                        definitionToBeMigrated.Repository.Url = new Uri(targetRepo.RemoteUrl);
+                        definitionToBeMigrated.Repository.Id = targetRepo.Id;
+                    }
+                }
+
+                if (TaskGroupMapping is not null && definitionToBeMigrated.Process.Phases != null)
                 {
                     foreach (var phase in definitionToBeMigrated.Process.Phases)
                     {
@@ -247,6 +320,7 @@ namespace MigrationTools.Processors
                         }
                     }
                 }
+                definitionToBeMigrated.Project = null;
             }
             var mappings = await Target.CreateApiDefinitionsAsync<BuildDefinition>(definitionsToBeMigrated.ToList());
             mappings.AddRange(FindExistingMappings(sourceDefinitions, targetDefinitions, mappings));
@@ -479,6 +553,54 @@ namespace MigrationTools.Processors
             var mappings = await Target.CreateApiDefinitionsAsync(filteredDefinition);
             mappings.AddRange(FindExistingMappings(sourceDefinitions, targetDefinitions, mappings));
             return mappings;
+        }
+    }
+    public static class DictionaryExtensionMethods
+    {
+        /// <summary>
+        /// Extension method that turns a dictionary of string and object to an ExpandoObject
+        /// </summary>
+        public static ExpandoObject ToExpando(this IDictionary<string, object> dictionary)
+        {
+            var expando = new ExpandoObject();
+            var expandoDic = (IDictionary<string, object>)expando;
+
+            // go through the items in the dictionary and copy over the key value pairs)
+            foreach (var kvp in dictionary)
+            {
+                // if the value can also be turned into an ExpandoObject, then do it!
+                if (kvp.Value is IDictionary<string, object>)
+                {
+                    var expandoValue = ((IDictionary<string, object>)kvp.Value).ToExpando();
+                    expandoDic.Add(kvp.Key, expandoValue);
+                }
+                else if (kvp.Value is ICollection)
+                {
+                    // iterate through the collection and convert any strin-object dictionaries
+                    // along the way into expando objects
+                    var itemList = new List<object>();
+                    foreach (var item in (ICollection)kvp.Value)
+                    {
+                        if (item is IDictionary<string, object>)
+                        {
+                            var expandoItem = ((IDictionary<string, object>)item).ToExpando();
+                            itemList.Add(expandoItem);
+                        }
+                        else
+                        {
+                            itemList.Add(item);
+                        }
+                    }
+
+                    expandoDic.Add(kvp.Key, itemList);
+                }
+                else
+                {
+                    expandoDic.Add(kvp);
+                }
+            }
+
+            return expando;
         }
     }
 }
