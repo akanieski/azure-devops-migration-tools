@@ -182,11 +182,6 @@
             <param name="sourceDefinitions"></param>
             <returns>List of sorted Definitions</returns>
         </member>
-        <member name="M:MigrationTools.Processors.DictionaryExtensionMethods.ToExpando(System.Collections.Generic.IDictionary{System.String,System.Object})">
-            <summary>
-            Extension method that turns a dictionary of string and object to an ExpandoObject
-            </summary>
-        </member>
         <member name="P:MigrationTools.Processors.AzureDevOpsPipelineProcessorOptions.MigrateBuildPipelines">
             <summary>
             Migrate Build Pipelines

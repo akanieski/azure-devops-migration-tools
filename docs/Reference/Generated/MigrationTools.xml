@@ -4,38 +4,9 @@
         <name>MigrationTools</name>
     </assembly>
     <members>
-        <member name="M:MigrationTools.DataContracts.Pipelines.BuildDefinition.ResetObject">
-            <inheritdoc/>
-        </member>
-        <member name="M:MigrationTools.DataContracts.Pipelines.ReleaseDefinition.ResetObject">
-            <inheritdoc/>
-        </member>
-        <member name="M:MigrationTools.DataContracts.RestApiDefinition.ResetObject">
+        <member name="M:MigrationTools.Processors.DictionaryExtensionMethods.ToExpando(System.Collections.Generic.IDictionary{System.String,System.Object})">
             <summary>
-            reset values that cannot be set on new objects
-            </summary>
-            <returns>The clean RestApiDefinition</returns>
-        </member>
-        <member name="M:MigrationTools.DataContracts.RestApiDefinition.HasTaskGroups">
-            <summary>
-            Checks whether the Definition references Taskgroups
-            </summary>
-            <returns>bool</returns>
-        </member>
-        <member name="M:MigrationTools.DataContracts.RestApiDefinition.HasVariableGroups">
-            <summary>
-            Checks whether the Definition references Variablegroups
-            </summary>
-            <returns>bool</returns>
-        </member>
-        <member name="P:MigrationTools.Enrichers.IEnricherOptions.Enabled">
-            <summary>
-            Active the enricher if it true.
-            </summary>
-        </member>
-        <member name="P:MigrationTools.Options.IOptions.RefName">
-            <summary>
-            If you set a `RefName` then this configration will be added to a Catalog of configurations that can be refernced using tha `RefName` so tha tyou dont have to keep adding the ame items with the same configuration.
+            Extension method that turns a dictionary of string and object to an ExpandoObject
             </summary>
         </member>
         <member name="P:MigrationTools.Processors.IProcessorOptions.SourceName">
@@ -71,6 +42,40 @@
         <member name="T:MigrationTools.Processors.WorkItemTrackingProcessor">
             <summary>
             This processor is intended, with the aid of [ProcessorEnrichers](../ProcessorEnrichers/index.md), to allow the migration of Work Items between two [Endpoints](../Endpoints/index.md).
+            </summary>
+        </member>
+        <member name="M:MigrationTools.DataContracts.Pipelines.BuildDefinition.ResetObject">
+            <inheritdoc/>
+        </member>
+        <member name="M:MigrationTools.DataContracts.Pipelines.ReleaseDefinition.ResetObject">
+            <inheritdoc/>
+        </member>
+        <member name="M:MigrationTools.DataContracts.RestApiDefinition.ResetObject">
+            <summary>
+            reset values that cannot be set on new objects
+            </summary>
+            <returns>The clean RestApiDefinition</returns>
+        </member>
+        <member name="M:MigrationTools.DataContracts.RestApiDefinition.HasTaskGroups">
+            <summary>
+            Checks whether the Definition references Taskgroups
+            </summary>
+            <returns>bool</returns>
+        </member>
+        <member name="M:MigrationTools.DataContracts.RestApiDefinition.HasVariableGroups">
+            <summary>
+            Checks whether the Definition references Variablegroups
+            </summary>
+            <returns>bool</returns>
+        </member>
+        <member name="P:MigrationTools.Enrichers.IEnricherOptions.Enabled">
+            <summary>
+            Active the enricher if it true.
+            </summary>
+        </member>
+        <member name="P:MigrationTools.Options.IOptions.RefName">
+            <summary>
+            If you set a `RefName` then this configration will be added to a Catalog of configurations that can be refernced using tha `RefName` so tha tyou dont have to keep adding the ame items with the same configuration.
             </summary>
         </member>
         <member name="P:MigrationTools._EngineV1.Configuration.IProcessorConfig.Enabled">
