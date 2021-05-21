@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Dynamic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -225,21 +223,6 @@ namespace MigrationTools.Processors
                                     // Inputs are unique in the sense that we don't always know in advance what each endpoint type will need in terms of mapping
                                     var inputs = step.Inputs.ToDictionary(x => x.Key, x => x.Value);
 
-                                    /*
-                                    var sourceConnection = sourceServiceConnections.FirstOrDefault(s => s.Id == (step.Inputs as dynamic).id);
-                                    var targetConnection = targetServiceConnections.FirstOrDefault(x => x.Id.Equals((step.Inputs as dynamic).id, StringComparison.OrdinalIgnoreCase));
-
-                                    if (targetConnection == null)
-                                    {
-                                        // Let's try to found the source in the target by name
-                                        targetConnection = targetServiceConnections.FirstOrDefault(x => x.Name.Equals(sourceConnection.Name, StringComparison.OrdinalIgnoreCase));
-                                    }
-                                    if (targetConnection == null)
-                                    {
-                                        Log.LogWarning($"Could not find source endpoint [{step.DisplayName}::{sourceConnection.Name}] in target.");
-                                        continue;
-                                    }*/
-
                                     // Generalized ID mapping - for any input property that looks like the source endpoint's ID
                                     foreach (var input in inputs.ToArray())
                                     {
@@ -250,15 +233,6 @@ namespace MigrationTools.Processors
                                             inputs[input.Key] = targetEndpoint.Id;
                                         }
                                     }
-
-                                    // Custom ID mapping
-                                    /*if (inputs.ContainsKey("gitHubConnection"))
-                                    {
-                                        // Need to map the source GH connection to Target
-                                        var sourceGH = sourceServiceConnections.FirstOrDefault(x => x.Id.Equals(inputs["gitHubConnection"].ToString(), StringComparison.OrdinalIgnoreCase));
-                                        var targetEndpoint = targetServiceConnections.FirstOrDefault(x => x.Name.Equals(sourceGH.Name, StringComparison.OrdinalIgnoreCase));
-                                        inputs["gitHubConnection"] = targetEndpoint?.Id;
-                                    }*/
 
                                     step.Inputs = inputs.ToExpando();
                                 }
@@ -553,54 +527,6 @@ namespace MigrationTools.Processors
             var mappings = await Target.CreateApiDefinitionsAsync(filteredDefinition);
             mappings.AddRange(FindExistingMappings(sourceDefinitions, targetDefinitions, mappings));
             return mappings;
-        }
-    }
-    public static class DictionaryExtensionMethods
-    {
-        /// <summary>
-        /// Extension method that turns a dictionary of string and object to an ExpandoObject
-        /// </summary>
-        public static ExpandoObject ToExpando(this IDictionary<string, object> dictionary)
-        {
-            var expando = new ExpandoObject();
-            var expandoDic = (IDictionary<string, object>)expando;
-
-            // go through the items in the dictionary and copy over the key value pairs)
-            foreach (var kvp in dictionary)
-            {
-                // if the value can also be turned into an ExpandoObject, then do it!
-                if (kvp.Value is IDictionary<string, object>)
-                {
-                    var expandoValue = ((IDictionary<string, object>)kvp.Value).ToExpando();
-                    expandoDic.Add(kvp.Key, expandoValue);
-                }
-                else if (kvp.Value is ICollection)
-                {
-                    // iterate through the collection and convert any strin-object dictionaries
-                    // along the way into expando objects
-                    var itemList = new List<object>();
-                    foreach (var item in (ICollection)kvp.Value)
-                    {
-                        if (item is IDictionary<string, object>)
-                        {
-                            var expandoItem = ((IDictionary<string, object>)item).ToExpando();
-                            itemList.Add(expandoItem);
-                        }
-                        else
-                        {
-                            itemList.Add(item);
-                        }
-                    }
-
-                    expandoDic.Add(kvp.Key, itemList);
-                }
-                else
-                {
-                    expandoDic.Add(kvp);
-                }
-            }
-
-            return expando;
         }
     }
 }
